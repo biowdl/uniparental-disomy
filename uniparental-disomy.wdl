@@ -22,6 +22,7 @@ version 1.0
 
 import "tasks/gatk.wdl" as gatk
 import "tasks/samtools.wdl" as samtools
+import "tasks/updio.wdl" as updio
 
 struct Trio {
     File childGvcf
@@ -39,6 +40,7 @@ workflow pipeline {
         File referenceFasta
         File? referenceFastaDict
         File? referenceFastaFai
+        String outputDir = "."
     }
 
     if (!defined(referenceFastaFai) || !defined(referenceFastaDict)) {
@@ -77,6 +79,24 @@ workflow pipeline {
         File momGvcfIndex = select_first([indexMom.index, trio.momGvcfIndex])
         File dadGvcfIndex = select_first([indexDad.index, trio.dadGvcfIndex])
 
+        call retrieveSamplesFromVcf as retrieveChildId {
+            input:
+                vcf = childGvcf
+        }
+
+        call retrieveSamplesFromVcf as retrieveMomId {
+            input:
+                vcf = momGvcf
+        }
+
+        call retrieveSamplesFromVcf as retrieveDadId {
+            input:
+                vcf = dadGvcf
+        }
+
+        String childId = retrieveChildId.samples[0]
+        String momId = retrieveMomId.samples[0]
+        String dadId = retrieveDadId.samples[0]
 
         call gatk.CombineGVCFs as CombineGVCFs {
             input:
@@ -96,13 +116,45 @@ workflow pipeline {
                 referenceFastaDict = refFastaDict,
                 referenceFastaFai = refFastaFai,
                 intervals = [commonSnpBed],
+                # Annotation is not needed.
+                annotationGroups = [],
+                disableToolStandardAnnotations = true,
         }
 
-
+        call updio.UpdioMultisample as runUpdio {
+            input:
+                multisampleVcf = GenotypeGVCFs.outputVCF,
+                multisampleVcfIndex = GenotypeGVCFs.outputVCFIndex,
+                childId = childId,
+                momId = momId,
+                dadId = dadId,
+                outputPath = outputDir + "/" + childId 
+        } 
     }
 
     output {
-        # Outputs
+        Array[File] updioFiles = flatten(runUpdio.files)
     }
 }
 
+
+task retrieveSamplesFromVcf {
+    input {
+        File vcf
+    }
+
+    command <<<
+        bcftools query --list-samples ~{vcf}
+    >>> 
+
+    output {
+        Array[String] samples = read_lines(stdout())
+    }
+
+    runtime {
+        docker: "quay.io/biocontainers/bcftools:1.16--hfe4b78e_1"
+        # 10 minutes should be ample as only the header and the first line are processed.
+        time_minutes: 10  
+        memory: "512MiB"
+    }
+}
