@@ -119,6 +119,7 @@ workflow UniparentalDisomy {
                 # Annotation is not needed.
                 annotationGroups = [],
                 disableToolStandardAnnotations = true,
+                timeMinutes = 10 + size(CombineGVCFs.outputVcf, "G") * 120,
         }
 
         call updio.UpdioMultisample as runUpdio {
