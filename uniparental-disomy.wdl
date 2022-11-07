@@ -105,6 +105,7 @@ workflow UniparentalDisomy {
                 referenceFasta = refFasta,
                 referenceFastaDict = refFastaDict,
                 referenceFastaFai = refFastaFai,
+                # Do not use regions here. This will make the process very slow.
         }
 
         call gatk.GenotypeGVCFs as GenotypeGVCFs {
