@@ -102,7 +102,6 @@ workflow UniparentalDisomy {
             input:
                 gvcfFiles = [childGvcf, momGvcf, dadGvcf],
                 gvcfFilesIndex = [childGvcfIndex, momGvcfIndex, dadGvcfIndex],
-                intervals = [commonSnpBed],
                 referenceFasta = refFasta,
                 referenceFastaDict = refFastaDict,
                 referenceFastaFai = refFastaFai,
