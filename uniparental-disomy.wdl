@@ -33,7 +33,7 @@ struct Trio {
     File? dadGvcfIndex
 }
 
-workflow pipeline {
+workflow UniparentalDisomy {
     input {
         Array[Trio] trios
         File commonSnpBed
