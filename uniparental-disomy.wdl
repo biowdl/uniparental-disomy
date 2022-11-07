@@ -20,24 +20,85 @@ version 1.0
 # OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 # SOFTWARE.
 
-import "tasks/common.wdl" as common
-import "sample.wdl" as sampleWorkflow
-import "structs.wdl" as structs
+import "tasks/gatk.wdl" as gatk
+import "tasks/samtools.wdl" as samtools
 
 struct Trio {
-    File child_gvcf
-    File mom_gvcf
-    File dad_gvcf
+    File childGvcf
+    File? childGvcfIndex
+    File momGvcf
+    File? momGvcfIndex
+    File dadGvcf
+    File? dadGvcfIndex
 }
 
 workflow pipeline {
     input {
         Array[Trio] trios
         File commonSnpBed
+        File referenceFasta
+        File? referenceFastaDict
+        File? referenceFastaFai
     }
 
+    if (!defined(referenceFastaFai) || !defined(referenceFastaDict)) {
+        call samtools.DictAndFaidx as fidx {
+            input:
+                inputFile = referenceFasta
+        }
+    }
+    File refFasta = select_first([fidx.outputFasta, referenceFasta])
+    File refFastaDict = select_first([fidx.outputFastaDict, referenceFastaDict])
+    File refFastaFai = select_first([fidx.outputFastaFai, referenceFastaFai])
+
     scatter (trio in trios) {
-        # Do stuff
+        if (!defined(trio.childGvcfIndex)) {
+            call samtools.Tabix as indexChild {
+                input:
+                    inputFile = trio.childGvcf,
+            }
+        }
+        if (!defined(trio.momGvcfIndex)) {
+            call samtools.Tabix as indexMom {
+                input:
+                    inputFile = trio.momGvcf,
+            }
+        }
+        if (!defined(trio.dadGvcfIndex)) {
+            call samtools.Tabix as indexDad{
+                input:
+                    inputFile = trio.dadGvcf,
+            }
+        }
+        File childGvcf = select_first([indexChild.indexedFile, trio.childGvcf])
+        File momGvcf = select_first([indexMom.indexedFile, trio.momGvcf])
+        File dadGvcf = select_first([indexDad.indexedFile, trio.dadGvcf])
+        File childGvcfIndex = select_first([indexChild.index, trio.childGvcfIndex])
+        File momGvcfIndex = select_first([indexMom.index, trio.momGvcfIndex])
+        File dadGvcfIndex = select_first([indexDad.index, trio.dadGvcfIndex])
+
+
+        call gatk.CombineGVCFs as CombineGVCFs {
+            input:
+                gvcfFiles = [childGvcf, momGvcf, dadGvcf],
+                gvcfFilesIndex = [childGvcfIndex, momGvcfIndex, dadGvcfIndex],
+                intervals = [commonSnpBed],
+                referenceFasta = refFasta,
+                referenceFastaDict = refFastaDict,
+                referenceFastaFai = refFastaFai,
+        }
+
+        call gatk.GenotypeGVCFs as GenotypeGVCFs {
+            input:
+                gvcfFile = CombineGVCFs.outputVcf,
+                gvcfFileIndex = CombineGVCFs.outputVcfIndex,
+                referenceFasta = refFasta,
+                referenceFastaDict = refFastaDict,
+                referenceFastaFai = refFastaFai,
+                intervals = [commonSnpBed],
+        }
+
+
     }
 
     output {
