@@ -119,6 +119,7 @@ workflow UniparentalDisomy {
                 # Annotation is not needed.
                 annotationGroups = [],
                 disableToolStandardAnnotations = true,
+                outputPath = outputDir + "/" + childId + "_trio.vcf.gz",
                 # Due to the large amount of SNPs calling can be quite slow.
                 timeMinutes = 10 + ceil(size(CombineGVCFs.outputVcf, "G") * 600),
         }
@@ -136,6 +137,7 @@ workflow UniparentalDisomy {
 
     output {
         Array[File] updioFiles = flatten(runUpdio.files)
+        Array[File] trioVcfs = GenotypeGVCFs.outputVCF
     }
 }
 
