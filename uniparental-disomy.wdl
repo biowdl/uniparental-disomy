@@ -119,7 +119,8 @@ workflow UniparentalDisomy {
                 # Annotation is not needed.
                 annotationGroups = [],
                 disableToolStandardAnnotations = true,
-                timeMinutes = 10 + ceil(size(CombineGVCFs.outputVcf, "G") * 120),
+                # Due to the large amount of SNPs calling can be quite slow.
+                timeMinutes = 10 + ceil(size(CombineGVCFs.outputVcf, "G") * 600),
         }
 
         call updio.UpdioMultisample as runUpdio {
