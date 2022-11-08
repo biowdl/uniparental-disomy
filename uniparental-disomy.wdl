@@ -97,6 +97,7 @@ workflow UniparentalDisomy {
         String childId = retrieveChildId.samples[0]
         String momId = retrieveMomId.samples[0]
         String dadId = retrieveDadId.samples[0]
+        String sampleDir = outputDir + "/" + childId
 
         call gatk.CombineGVCFs as CombineGVCFs {
             input:
@@ -119,9 +120,7 @@ workflow UniparentalDisomy {
                 # Annotation is not needed.
                 annotationGroups = [],
                 disableToolStandardAnnotations = true,
-                outputPath = outputDir + "/" + childId + "_trio.vcf.gz",
-                # Due to the large amount of SNPs calling can be quite slow.
-                timeMinutes = 10 + ceil(size(CombineGVCFs.outputVcf, "G") * 600),
+                outputPath = sampleDir + "/" + childId + "_trio.vcf.gz"
         }
 
         call updio.UpdioMultisample as runUpdio {
@@ -131,7 +130,7 @@ workflow UniparentalDisomy {
                 childId = childId,
                 momId = momId,
                 dadId = dadId,
-                outputPath = outputDir + "/" + childId 
+                outputPath = sampleDir
         } 
     }
 
